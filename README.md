@@ -34,12 +34,11 @@ All output summaries and tabular CSV files will be generated in the `outputs/` d
 - Comparing `n_required = 1293` to the currently available 800 records demonstrates that the existing dataset is insufficient to achieve the planning team's desired INR 50 precision target. Category planners cannot treat current estimates as tightly bounded to within INR 50 without gathering at least 493 additional transaction records.
 
 ### R1.3 Gradient Descent vs. Closed-Form Ordinary Least Squares
-- The gradient descent line matches the closed-form OLS analytical line with `gd_slope_gap = 0.0000` (both yield slope 0.6701 and intercept -3.6598).
-- Gradient descent reached the exact closed-form line because linear regression with mean squared error defines a strictly convex quadratic loss landscape with a unique global minimum, and feature standardization combined with a well-conditioned learning rate (η = 0.1) over 500 epochs guarantees asymptotic convergence to the OLS optimum.
+- The gradient descent line matches the closed-form OLS analytical line with `gd_slope_gap = 0.0000` (both yield slope 0.6701 and intercept -3.6598). After 500 iterations, gradient descent produced a slope close to the closed-form regression slope, with the difference falling within the required numerical tolerance.
 
 ### R1.4 Funnel Effect and Logarithmic Transformation
 - The raw linear model exhibits severe heteroskedasticity with `resid_sd_lower_raw = 2.3155`, `resid_sd_upper_raw = 8.6891`, and a ratio of `resid_sd_ratio_raw = 3.7525`, confirming a pronounced funnel where residual dispersion expands dramatically at higher predicted order values.
-- In contrast, the log-log model stabilizes residual variance across fitted values, yielding `resid_sd_lower_log = 0.5165`, `resid_sd_upper_log = 0.5369`, and `resid_sd_ratio_log = 1.0396`. The logarithmic remedy effectively eliminates the funnel, restoring homoskedastic error behavior.
+- In contrast, the log transformation substantially reduced the observed heteroscedasticity pattern, as indicated by the residual standard deviation ratio moving closer to 1 (`resid_sd_lower_log = 0.5165`, `resid_sd_upper_log = 0.5369`, and `resid_sd_ratio_log = 1.0396`).
 
 ### R1.5 Multiple Regression Coefficients and Model Comparison
 - In Task 1.7, the predictors whose coefficients have an absolute magnitude above 0.05 (excluding the intercept `mr_beta_0 = -1.8613`) are:
@@ -47,7 +46,7 @@ All output summaries and tabular CSV files will be generated in the `outputs/` d
   - `X2` (`complaint_count_90d`): `mr_beta_3 = 0.0940`
   - `X3` (`discount_order_share`): `mr_beta_4 = 0.1067`
   - `X6` (`cod_flag`): `mr_beta_6 = 0.1518`
-- Comparing multiple regression adjusted R² (`mr_adj_r2 = 0.7403`) with the bivariate log-log model (`loglog_adj_r2 = 0.6561`) shows an incremental gain of +0.0842 in explained variance. Because adjusted R² penalizes additional model parameters, this positive margin proves that the additional customer profile variables earn their place by significantly improving predictive power.
+- The multiple regression model achieved an adjusted R-squared of 0.7403 compared with 0.6561 for the log-log regression model. This indicates a better model fit after accounting for the number of predictors, although it does not independently establish statistical significance.
 
 ---
 
@@ -175,13 +174,13 @@ From `outputs/part3_segments.csv`:
 **From:** Customer Analytics Decision Intelligence Team  
 **Subject:** Production Churn Alert Model Recommendation  
 
-We recommend deploying the **regularized logistic regression model** at decision threshold **τ = 0.1500** for production retention interventions.
+We recommend deploying **logistic regression trained using gradient descent** at decision threshold **τ = 0.1500** for production retention interventions.
 
 In evaluating customer churn risk, asymmetric operational costs dominate: issuing a preemptive retention coupon to an active shopper costs INR 50, whereas allowing an at-risk customer to churn unflagged incurs an estimated INR 400 in lost future operating margin. Using the test set of 240 customer accounts, deploying logistic regression at the financially optimal threshold of τ = 0.1500 generates a total intervention cost of **INR 6,050** (`cost_test_at_tau = 6050`). This represents a 48.7% cost reduction compared to the conventional τ = 0.5000 threshold cost of **INR 11,800** (`cost_test_at_0.5 = 11800`), and saves **INR 14,350** relative to the unflagged baseline cost of **INR 20,400** (`cost_test_flag_nobody = 20400`).
 
 Among tested alternatives, logistic regression delivered superior balance and discriminative power (`f1 = 0.5714`, `recall = 0.7451` at τ = 0.3) compared to K-nearest neighbours (`knn_f1 = 0.3696`, `knn_recall = 0.3333`) and voting ensembles (`hard_vote f1 = 0.5344`). Combining models diluted performance because neighbor-based voting introduced substantial classification noise.
 
-**Operational Risk:** Our evaluation is based on a test split containing only 51 positive churn events; slight shifts in customer behavior or coupon response decay could alter false-positive economics.
+**Operational Risk:** Our evidence is subject to key limitations: the analysis relies on a synthetic dataset and a single 70/30 train-test split containing only 51 positive churn events; slight shifts in real customer behavior or coupon response decay could alter false-alarm economics.
 
 Neither Model A (product image sorting) nor Model B (review text classification) is worth building before the tabular retention model is operational in production, as tabular churn alerts address immediate margin loss with established operational levers.
 
@@ -193,4 +192,3 @@ Neither Model A (product image sorting) nor Model B (review text classification)
 2. **Single Stratified Split Sensitivity:** All validation results rely on a single 70/30 train/test split. Although stratified by churn outcome, performance metrics remain susceptible to split-specific sampling variation; repeated k-fold cross-validation across all models would provide narrower empirical confidence intervals.
 3. **Small Positive Sample Size:** The test set contains only 51 positive churn records. At this sample size, a classification difference of merely two customer accounts shifts sensitivity or precision by approximately 4 percentage points, inflating metric volatility.
 4. **Static Cost Assumptions:** The financial objective function fixes misclassification costs at INR 50 per false alarm and INR 400 per missed churner. In actual operations, lost margins scale with customer lifetime value and order volume, meaning high-value customers justify significantly higher retention spend than low-basket deal seekers.
-
