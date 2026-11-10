@@ -153,3 +153,30 @@ def knn_predict(X_ref, y_ref, X_query, K):
         preds.append(pred)
         probs.append(prob)
     return np.array(preds), np.array(probs)
+
+
+def select_best_knn_k(X_train_std, y_train, train_len):
+    """Select optimal odd K from 1 to 21 via 5-fold cross-validation on training data."""
+    fold_assignments = np.array([i % 5 for i in range(train_len)])
+    K_list = list(range(1, 23, 2))
+    best_k = None
+    best_cv_f1 = -1.0
+    cv_records = []
+
+    for K in K_list:
+        fold_f1s = []
+        for f in range(5):
+            val_mask = fold_assignments == f
+            ref_mask = ~val_mask
+            X_ref, y_ref = X_train_std[ref_mask], y_train[ref_mask]
+            X_val, y_val = X_train_std[val_mask], y_train[val_mask]
+            pred_val, _ = knn_predict(X_ref, y_ref, X_val, K)
+            metrics_fold = compute_confusion_and_metrics(y_val, pred_val, tau=0.5)
+            fold_f1s.append(metrics_fold["f1"])
+        mean_f1 = float(np.mean(fold_f1s))
+        cv_records.append((K, mean_f1))
+        if mean_f1 > best_cv_f1:  # ties go to smaller K
+            best_cv_f1 = mean_f1
+            best_k = K
+
+    return best_k, cv_records

@@ -1,9 +1,5 @@
 Domain: E-commerce
 
-# Flipkart E-commerce Decision Intelligence
-
-Capstone Project — Minor in Artificial Intelligence & Data Science, IIT Mandi
-
 ## How to run
 
 To replicate all analyses and regenerate every results file from a clean clone, run the following commands from the repository root:
@@ -57,7 +53,7 @@ All output summaries and tabular CSV files will be generated in the `outputs/` d
   1. η = 1.0: `loss_epoch_200_eta_1.0 = 0.3703`
   2. η = 0.1: `loss_epoch_200_eta_0.1 = 0.3776`
   3. η = 0.01: `loss_epoch_200_eta_0.01 = 0.5091`
-- This progression shows that an overly small learning rate (0.01) progresses too slowly to converge within 200 iterations, whereas a large learning rate (1.0) achieves rapid descent toward the optimum without overshooting or divergence on this convex cross-entropy surface.
+- The smaller learning rate (0.01) progresses more slowly within 200 epochs, while the learning rate of 1.0 achieves the lowest training loss among the tested values. This comparison is based on the reported loss after 200 epochs.
 
 ### R2.2 Key Churn Drivers and Odds Ratio Interpretation
 - The three predictors with the largest absolute standardized weights are:
@@ -95,7 +91,7 @@ All output summaries and tabular CSV files will be generated in the `outputs/` d
   - WCSS(3) − WCSS(4) = 1602.8471 − 1494.7732 = **108.0739**
   - WCSS(4) − WCSS(5) = 1494.7732 − 1323.7157 = **171.0575**
   - WCSS(5) − WCSS(6) = 1323.7157 − 1278.1691 = **45.5466**
-- The elbow criterion identifies `elbow_k = 3` because the drop from K=3 to K=4 (108.0739) is less than half the preceding drop from K=2 to K=3 (0.5 × 659.8282 = 329.9141). Although the subsequent drops do not shrink monotonically due to pinned deterministic seeds finding local minima rather than global optima, K = 3 cleanly isolates the underlying shopper segments.
+- The elbow criterion identifies `elbow_k = 3` because the drop from K=3 to K=4 (108.0739) is less than half the preceding drop from K=2 to K=3 (0.5 × 659.8282 = 329.9141). Although the subsequent drops do not shrink steadily (since pinned deterministic seeds yield a reproducible local solution rather than a guaranteed global optimum), based on the specified elbow criterion, K=3 is selected for customer segmentation. The resulting clusters are then interpreted using their customer profiles and churn rates.
 
 ### R3.2 Customer Segment Profiles and Actions
 From `outputs/part3_segments.csv`:
@@ -178,7 +174,7 @@ We recommend deploying **logistic regression trained using gradient descent** at
 
 In evaluating customer churn risk, asymmetric operational costs dominate: issuing a preemptive retention coupon to an active shopper costs INR 50, whereas allowing an at-risk customer to churn unflagged incurs an estimated INR 400 in lost future operating margin. Using the test set of 240 customer accounts, deploying logistic regression at the financially optimal threshold of τ = 0.1500 generates a total intervention cost of **INR 6,050** (`cost_test_at_tau = 6050`). This represents a 48.7% cost reduction compared to the conventional τ = 0.5000 threshold cost of **INR 11,800** (`cost_test_at_0.5 = 11800`), and saves **INR 14,350** relative to the unflagged baseline cost of **INR 20,400** (`cost_test_flag_nobody = 20400`).
 
-Among tested alternatives, logistic regression delivered superior balance and discriminative power (`f1 = 0.5714`, `recall = 0.7451` at τ = 0.3) compared to K-nearest neighbours (`knn_f1 = 0.3696`, `knn_recall = 0.3333`) and voting ensembles (`hard_vote f1 = 0.5344`). Combining models diluted performance because neighbor-based voting introduced substantial classification noise.
+Among tested alternatives, logistic regression achieved the highest F1 score among the tested models (0.5714), while maintaining a recall of 0.7451 at τ = 0.3, compared to K-nearest neighbours (`knn_f1 = 0.3696`, `knn_recall = 0.3333`) and voting ensembles (`hard_vote f1 = 0.5344`). Combining models diluted performance because neighbor-based voting introduced substantial classification noise.
 
 **Operational Risk:** Our evidence is subject to key limitations: the analysis relies on a synthetic dataset and a single 70/30 train-test split containing only 51 positive churn events; slight shifts in real customer behavior or coupon response decay could alter false-alarm economics.
 

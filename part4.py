@@ -20,6 +20,7 @@ from common import (
     compute_confusion_and_metrics,
     fit_logistic_regression,
     knn_predict,
+    select_best_knn_k,
 )
 
 
@@ -60,6 +61,7 @@ def run_part4():
     best_gg = -1.0
     best_split_by_ig = None
     best_split_by_gg = None
+    best_split_cond = None
 
     for name, cond in candidate_splits:
         yes_rows = [r for r in train_rows if cond(r)]
@@ -79,6 +81,7 @@ def run_part4():
         if ig > best_ig:
             best_ig = ig
             best_split_by_ig = name
+            best_split_cond = cond
         if gg > best_gg:
             best_gg = gg
             best_split_by_gg = name
@@ -91,14 +94,11 @@ def run_part4():
             writer.writerow([r[0], r[1], r[2], r[3], r[4], f"{r[5]:.4f}", f"{r[6]:.4f}"])
 
     # 4.2 Stump and Voting models
-    # S4 is best split
-    pos_yes_s4 = sum(int(r["churned"]) for r in train_rows if float(r["customer_tenure_months"]) <= 24.0)
-    n_yes_s4 = sum(1 for r in train_rows if float(r["customer_tenure_months"]) <= 24.0)
-    pos_no_s4 = sum(int(r["churned"]) for r in train_rows if float(r["customer_tenure_months"]) > 24.0)
-    n_no_s4 = sum(1 for r in train_rows if float(r["customer_tenure_months"]) > 24.0)
-
-    stump_rate_yes = pos_yes_s4 / n_yes_s4
-    stump_rate_no = pos_no_s4 / n_no_s4
+    # The stump is dynamically determined from the best split by information gain
+    yes_train_stump = [r for r in train_rows if best_split_cond(r)]
+    no_train_stump = [r for r in train_rows if not best_split_cond(r)]
+    stump_rate_yes = sum(int(r["churned"]) for r in yes_train_stump) / len(yes_train_stump)
+    stump_rate_no = sum(int(r["churned"]) for r in no_train_stump) / len(no_train_stump)
 
     # Prepare features for logistic and knn
     X_train_raw = np.array([[float(r[col]) for col in FEATURE_COLS] for r in train_rows])
@@ -113,13 +113,13 @@ def run_part4():
     prob_logistic = sigmoid(X_test_std @ w_lr + b_lr)
     pred_logistic = (prob_logistic >= 0.3).astype(int)
 
-    # 2. KNN model (K=5)
-    K_best = 5
-    pred_knn, prob_knn = knn_predict(X_train_std, y_train, X_test_std, K_best)
+    # 2. KNN model (K dynamically chosen via cross-validation on training data)
+    best_k, _ = select_best_knn_k(X_train_std, y_train, len(train_rows))
+    pred_knn, prob_knn = knn_predict(X_train_std, y_train, X_test_std, best_k)
 
-    # 3. Stump model
+    # 3. Stump model (evaluated dynamically using best_split_cond)
     prob_stump = np.array([
-        stump_rate_yes if float(r["customer_tenure_months"]) <= 24.0 else stump_rate_no
+        stump_rate_yes if best_split_cond(r) else stump_rate_no
         for r in test_rows
     ])
     pred_stump = (prob_stump >= 0.3).astype(int)
@@ -262,4 +262,3 @@ def run_part4():
 
 if __name__ == "__main__":
     run_part4()
-

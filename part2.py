@@ -19,6 +19,7 @@ from common import (
     compute_confusion_and_metrics,
     fit_logistic_regression,
     knn_predict,
+    select_best_knn_k,
 )
 
 
@@ -89,28 +90,8 @@ def run_part2():
         writer.writerow(["tau", "tp", "fp", "tn", "fn", "tpr", "fpr"])
         writer.writerows(sweep_rows)
 
-    # 2.7 K-nearest neighbours with 5-fold cross-validation
-    fold_assignments = np.array([i % 5 for i in range(len(train_idx))])
-    K_list = list(range(1, 23, 2))
-    cv_records = []
-    best_k = None
-    best_cv_f1 = -1.0
-
-    for K in K_list:
-        fold_f1s = []
-        for f in range(5):
-            val_mask = (fold_assignments == f)
-            ref_mask = ~val_mask
-            X_ref, y_ref = X_train[ref_mask], y_train[ref_mask]
-            X_val, y_val = X_train[val_mask], y_train[val_mask]
-            pred_val, _ = knn_predict(X_ref, y_ref, X_val, K)
-            metrics_fold = compute_confusion_and_metrics(y_val, pred_val, tau=0.5)
-            fold_f1s.append(metrics_fold["f1"])
-        mean_f1 = float(np.mean(fold_f1s))
-        cv_records.append((K, mean_f1))
-        if mean_f1 > best_cv_f1:  # ties go to smaller K automatically because K is strictly increasing
-            best_cv_f1 = mean_f1
-            best_k = K
+    # 2.7 K-nearest neighbours with 5-fold cross-validation (dynamic selection)
+    best_k, cv_records = select_best_knn_k(X_train, y_train, len(train_idx))
 
     with open(os.path.join("outputs", "part2_knn_cv.csv"), "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
